@@ -1,0 +1,25 @@
+# Dependências do Node.js
+node_modules/
+
+# Arquivos temporários
+temp/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Arquivos de ambiente (.env)
+.env
+.env.local
+.env.*.local
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

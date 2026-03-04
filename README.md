@@ -1,6 +1,6 @@
 # WAGE — Workspace-Based Agent
 
-> **An AI agent framework with local workspace to store project context.**
+> **MCP server that provides structured workspace for AI agents to store project context, tools, practices, and scripts.**
 
 ---
 
@@ -8,12 +8,38 @@
 
 ### What Is WAGE?
 
-**WAGE** (Workspace-Based Agent) is a framework that provides a structured workspace for AI agents to work on software projects. It functions as a "smart notebook" where the agent stores:
+**WAGE** (Workspace-Based Agent) is an **MCP server** that provides a structured workspace for AI agents working on software projects. It functions as a "smart notebook" where agents store:
 
 - 📚 **Project Context** — Documentation, concepts, and business rules
 - 🛠️ **Tools** — Information about external tools used
 - 📝 **Practices** — Best techniques for specific actions (tests, deploy, etc.)
 - ⚙️ **Scripts** — Utilities for task automation
+
+---
+
+### ⚡ Quick Start
+
+**Prerequisites:**
+- Node.js 18.x or higher
+- MCP-compatible AI assistant (Qwen Code, Cline, etc.)
+
+**Setup:**
+```bash
+cd wage/server
+npm install
+```
+
+**Configuration:** Add the WAGE MCP server to your AI assistant's configuration. See [Configuration](#-configuration) below.
+
+**Usage:** Simply ask your AI assistant to perform tasks. It will automatically use WAGE tools when needed:
+
+```
+"Create unit tests for the authentication module"
+"List available contexts"
+"Optimize database queries using the ruby agent"
+```
+
+---
 
 ### Why Use WAGE?
 
@@ -27,6 +53,9 @@
 | 🛠️ **Reusable Automation** | Scripts created during tasks are saved for future reuse |
 | 📈 **Continuous Learning** | The agent gets smarter with each task by updating context files |
 | 🔀 **No Merge Conflicts** | Each developer has their own local `wage/` folder — no Git conflicts |
+| 🔌 **MCP Integration** | Works seamlessly with any MCP-compatible AI assistant |
+
+---
 
 ### Prerequisites
 
@@ -35,7 +64,7 @@ Ensure you have installed on your machine:
 | Tool | Minimum Version | Purpose |
 |------|-----------------|---------|
 | **Node.js** | 18.x or higher | Run JavaScript scripts (`.js`) |
-| **Python** | 3.8 or higher | Run Python scripts (`.py`) |
+| **Python** | 3.8 or higher | Run Python scripts (`.py`) — optional but recommended |
 
 **Verify installations:**
 
@@ -44,9 +73,9 @@ node --version    # Should display v18.x.x or higher
 python --version  # Should display Python 3.8.x or higher
 ```
 
-> 💡 **Note:** JavaScript scripts are the WAGE default. Python is optional but recommended for certain automations.
+---
 
-### Document Language
+### 📋 Document Language
 
 | Element | Language |
 |---------|----------|
@@ -55,6 +84,8 @@ python --version  # Should display Python 3.8.x or higher
 | **Scripts** | English (names and comments) |
 
 > 📝 **Why English in documents?** Standardization for international teams, better compatibility with search/AI tools, and universal technical documentation convention.
+
+---
 
 ### Installation
 
@@ -80,49 +111,116 @@ python --version  # Should display Python 3.8.x or higher
 
    > ⚠️ **Important:** The `wage/` folder must be in `.gitignore` to prevent your local context from being accidentally committed to the repository, which would cause merge conflicts with other developers.
 
+---
+
+### 🔌 Configuration
+
+Configure the WAGE MCP server in your AI assistant. The server runs from `wage/server/server.js`.
+
+#### Qwen Code (VS Code)
+
+Add to your `~/.qwen/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "wage": {
+      "command": "node",
+      "args": ["path/to/your-project/wage/server/server.js"],
+      "cwd": "path/to/your-project/wage/server"
+    }
+  }
+}
+```
+
+> 💡 **Tip:** Use absolute paths or paths relative to your workspace root.
+
+#### Cline (VS Code)
+
+Add to your Cline MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "wage": {
+      "command": "node",
+      "args": ["path/to/your-project/wage/server/server.js"],
+      "cwd": "path/to/your-project/wage/server"
+    }
+  }
+}
+```
+
+#### Other MCP Clients
+
+Use the standard MCP configuration format:
+
+```json
+{
+  "mcpServers": {
+    "wage": {
+      "command": "node",
+      "args": ["<absolute-path-to>/wage/server/server.js"],
+      "cwd": "<absolute-path-to>/wage/server"
+    }
+  }
+}
+```
+
+> 💡 **Note:** Each project can have its own WAGE configuration. Context files are stored per-project in `wage/contexts/`.
+
+---
+
 ### How to Use
 
-#### Single Agent (Default)
+#### Basic Usage
 
-To request a task from the default agent, use the **secret phrase**:
+Simply ask your AI assistant to perform tasks. The assistant will automatically:
 
-```
-Be @wage, [your request]
-```
-
-**Examples:**
-
-- *"Be @wage, create unit tests for the authentication module"*
-- *"Be @wage, generate API documentation"*
-- *"Be @wage, refactor the button component following project practices"*
-
-#### Multi-Agent (Custom Agents)
-
-Create specialized agents for different tasks and activate them by name:
-
-```
-Be @wage:<agent-name>, [your request]
-```
+1. Check `.gitignore` before starting
+2. Read relevant contexts from `contexts/`
+3. Use scripts from `scripts/` if available
+4. Update contexts with new knowledge after completing
 
 **Examples:**
 
-- *"Be @wage:ruby, refactor the user model"*
-- *"Be @wage:frontend, update the button styles"*
-- *"Be @wage:devops, configure CI/CD pipeline"*
+- *"Create unit tests for the authentication module"*
+- *"Generate API documentation"*
+- *"Refactor the button component following project practices"*
+- *"List available contexts"*
+- *"What agents are available?"*
+
+#### Multi-Agent Mode
+
+To use a specialized agent, simply mention it in your request:
+
+**Examples:**
+
+- *"Use the ruby agent to refactor the user model"*
+- *"Ask the frontend agent to update button styles"*
+- *"The devops agent should configure the CI/CD pipeline"*
+
+The assistant will automatically:
+1. Activate the specialized agent
+2. Read agent-specific contexts from `contexts/<agent>/`
+3. Use scripts from `scripts/<agent>/`
+4. Save new knowledge to the agent's context folder
 
 **To see available agents:**
 
 ```
-Be @wage, what agents are available?
+What agents are available?
 ```
 
 **To create a new agent:**
 
 ```
-Be @wage, create agent <agent-name>
+Create a new agent named <agent-name>
 ```
 
 See `agents/README.md` for more details on creating and managing agents.
+
+---
 
 ### `wage/` Folder Structure
 
@@ -148,35 +246,82 @@ wage/
 
 ---
 
-## 🤖 For the Agent
+## 🤖 For the Agent (MCP Tools)
 
 ### Contextualization
 
-You are a **WAGE** (Workspace-Based Agent) — an AI agent with a local workspace to work on software projects.
+You are an AI agent with access to the WAGE MCP server — a set of tools that provide structured workspace for software projects.
 
-Your workspace is located at `./wage/` and contains:
+The WAGE workspace is located at `./wage/` and contains:
 
 | Folder | Purpose |
 |--------|---------|
-| `agents/` | Custom agent definitions — check for specialized agents |
-| `contexts/` | Your "smart notebook" — stores project knowledge |
+| `agents/` | Specialized agent definitions — check for specialized agents |
+| `contexts/` | Project knowledge base — stores project knowledge |
 | `scripts/` | Utility scripts you can use during tasks |
-| `temp/` | Your "scratch pad" — temporary files, logs, tests |
+| `temp/` | Temporary workspace (cleaned each task) |
+
+---
+
+### Available MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `wage_check_gitignore` | Check if `wage/` is in `.gitignore`. **Must be called before any task.** |
+| `wage_list_agents` | List all available specialized agents |
+| `wage_set_agent` | Activate a specialized agent (multi-agent mode) |
+| `wage_get_current_agent` | Get the currently active agent |
+| `wage_read_agent` | Read an agent definition file |
+| `wage_list_contexts` | List available context files |
+| `wage_read_context` | Read a context file |
+| `wage_write_context` | Create or update a context file |
+| `wage_list_scripts` | List available utility scripts |
+| `wage_execute_script` | Execute a script (JS or Python) |
+| `wage_clean_temp` | Clean the `temp/` folder |
+| `wage_get_workflow_rules` | Get the WAGE workflow rules |
+
+---
 
 ### Multi-Agent Mode
 
-When activated as `Be @wage:<agent-name>, ...`:
+When a task requires specialized knowledge:
 
-1. Read `agents/<agent-name>.md` to understand your specialization
-2. Use context from `contexts/shared/` + `contexts/<agent-name>/`
-3. Use scripts from `scripts/shared/` + `scripts/<agent-name>/`
-4. Update `contexts/<agent-name>/` with new knowledge
+1. **List available agents:**
+   ```
+   wage_list_agents()
+   ```
 
-When activated as `Be @wage, ...` (default):
+2. **Activate specialized agent:**
+   ```
+   wage_set_agent({name: "ruby"})
+   ```
 
-1. Use context from `contexts/shared/` only
-2. Use scripts from `scripts/shared/` only
-3. Update `contexts/shared/` with new knowledge
+3. **Read agent definition:**
+   ```
+   wage_read_agent({name: "ruby"})
+   ```
+
+4. **Access agent-specific contexts:**
+   ```
+   wage_list_contexts({agent: "ruby"})
+   wage_read_context({file: "tool-rails.md", agent: "ruby"})
+   ```
+
+5. **Save new knowledge:**
+   ```
+   wage_write_context({file: "action-learnings.md", content: "...", agent: "ruby"})
+   ```
+
+---
+
+### Context Isolation
+
+| Agent Status | Contexts Available | Scripts Available |
+|--------------|-------------------|-------------------|
+| Default (null) | `contexts/shared/` | `scripts/shared/` |
+| Specialized (`ruby`) | `contexts/shared/` + `contexts/ruby/` | `scripts/shared/` + `scripts/ruby/` |
+
+---
 
 ### Language
 
@@ -188,18 +333,22 @@ When activated as `Be @wage, ...` (default):
 
 > ⚠️ **Important:** Always create/update documents in `contexts/` in **English**, even if the user communicates in Portuguese.
 
+---
+
 ### Behavior Rules
 
-**Read the `workflow.md` file carefully** — it defines all rules and work methods you MUST follow.
+**Always follow the workflow defined in `workflow.md`.**
 
 **Summary of obligations:**
 
-1. ✅ **Check `.gitignore`** — Before any task, confirm `wage/` is in `.gitignore`
-2. ✅ **Check/create folders** — Ensure `contexts/`, `scripts/`, and `temp/` exist
-3. ✅ **Clean `temp/`** — Empty before starting a task
-4. ✅ **Execute task** — Use context from `contexts/` to work
-5. ✅ **Update `contexts/`** — Add new knowledge after completing
-6. ✅ **Clean `temp/`** — Remove residues when finishing
+1. ✅ **Check `.gitignore`** — Before any task, call `wage_check_gitignore()`
+2. ✅ **Check/create folders** — Ensure structure exists via `wage_list_contexts()`
+3. ✅ **Clean `temp/`** — Call `wage_clean_temp()` before starting a task
+4. ✅ **Execute task** — Use contexts and scripts to work
+5. ✅ **Update `contexts/`** — Call `wage_write_context()` after completing with new knowledge
+6. ✅ **Clean `temp/`** — Call `wage_clean_temp()` when finishing
+
+---
 
 ### Naming Conventions
 
@@ -209,16 +358,6 @@ When activated as `Be @wage, ...` (default):
 | `action-*.md` | Best practices for actions (e.g., `action-createUnitTest.md`) |
 | `concept-*.md` | Concepts and business rules (e.g., `concept-inss.md`) |
 | `*.js` or `*.py` | Utility scripts |
-
-### Activation
-
-You are activated when the user uses the phrase:
-
-```
-Be @wage, [request]
-```
-
-The `@` indicates you should recognize the path and act as WAGE.
 
 ---
 
