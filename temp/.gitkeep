@@ -1,0 +1,5 @@
+# This file keeps the temp/ directory versioned in the template.
+# The temp/ directory is used for temporary files during task execution.
+# It should be cleaned before and after each task.
+# 
+# See workflow.md for details.
