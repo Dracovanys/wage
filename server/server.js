@@ -31,6 +31,9 @@ const SCRIPTS_DIR = join(WAGE_DIR, 'scripts');
 const TEMP_DIR = join(WAGE_DIR, 'temp');
 const WORKFLOW_FILE = join(WAGE_DIR, 'workflow.md');
 
+// WAGE version
+const WAGE_VERSION = '2.0.0';
+
 // Current agent state (for multi-agent mode)
 let currentAgent = null;
 
@@ -387,6 +390,14 @@ const TOOLS = [
       properties: {},
     },
   },
+  {
+    name: 'wage_get_version',
+    description: 'Get the WAGE version. Use this to answer questions like "What is your WAGE version?"',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
 ];
 
 // Create MCP server
@@ -415,11 +426,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case 'wage_check_gitignore': {
         const result = await checkGitignore();
+        
+        let message = '';
+        if (result.exists && result.hasWageEntry) {
+          message = '✅ wage/ folder is properly listed in .gitignore';
+        } else if (!result.exists) {
+          message = '⚠️ .gitignore file not found in project root';
+        } else {
+          message = '⚠️ WARNING: wage/ folder is NOT in .gitignore - add it to prevent merge conflicts';
+        }
+        
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(result, null, 2),
+              text: message,
             },
           ],
         };
@@ -427,11 +448,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'wage_list_agents': {
         const agents = await listAvailableAgents();
+        
+        let message = '';
+        if (agents.length === 0) {
+          message = 'No specialized agents found. Create one with: Create a new agent named <agent-name>';
+        } else {
+          message = `Available specialized agents (${agents.length}):\n` + 
+                    agents.map(a => `  • ${a}`).join('\n');
+        }
+        
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(agents, null, 2),
+              text: message,
             },
           ],
         };
@@ -457,7 +487,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: currentAgent || 'null (default mode)',
+              text: currentAgent
+                ? `Active agent: ${currentAgent}`
+                : 'No active agent (default mode - using shared contexts)',
             },
           ],
         };
@@ -466,17 +498,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'wage_read_agent': {
         const { name: agentName } = args;
         const agentFile = join(AGENTS_DIR, `${agentName}.md`);
-        
+
         if (!existsSync(agentFile)) {
           throw new Error(`Agent '${agentName}' not found. Create it first.`);
         }
-        
+
         const content = await readFile(agentFile, 'utf-8');
         return {
           content: [
             {
               type: 'text',
-              text: content,
+              text: `🤖 Reading agent: agents/${agentName}.md\n\n${content}`,
             },
           ],
         };
@@ -486,11 +518,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { agent } = args;
         const targetAgent = agent !== undefined ? agent : currentAgent;
         const contexts = await listContextFiles(targetAgent);
+        
+        let message = '';
+        if (contexts.length === 0) {
+          const scope = targetAgent ? `contexts/${targetAgent}/ and contexts/shared/` : 'contexts/shared/';
+          message = `No context files found in ${scope}`;
+        } else {
+          const scope = targetAgent ? ` for ${targetAgent}` : '';
+          message = `Available context files${scope} (${contexts.length}):\n` +
+                    contexts.map(c => `  • ${c.file} (${c.agent})`).join('\n');
+        }
+        
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(contexts, null, 2),
+              text: message,
             },
           ],
         };
@@ -499,7 +542,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'wage_read_context': {
         const { file, agent } = args;
         const targetAgent = agent !== undefined ? agent : currentAgent;
-        
+
         // Try agent-specific context first if agent is set
         if (targetAgent) {
           const agentContextPath = join(CONTEXTS_DIR, targetAgent, file);
@@ -509,25 +552,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               content: [
                 {
                   type: 'text',
-                  text: content,
+                  text: `📄 Reading context: contexts/${targetAgent}/${file}\n\n${content}`,
                 },
               ],
             };
           }
         }
-        
+
         // Fall back to shared context
         const sharedPath = join(CONTEXTS_DIR, 'shared', file);
         if (!existsSync(sharedPath)) {
           throw new Error(`Context file '${file}' not found in ${targetAgent ? `contexts/${targetAgent}/ or contexts/shared/` : 'contexts/shared/'}`);
         }
-        
+
         const content = await readFile(sharedPath, 'utf-8');
         return {
           content: [
             {
               type: 'text',
-              text: content,
+              text: `📄 Reading context: contexts/shared/${file}\n\n${content}`,
             },
           ],
         };
@@ -536,25 +579,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'wage_write_context': {
         const { file, content, agent } = args;
         const targetAgent = agent !== undefined ? agent : currentAgent;
-        
-        const contextDir = targetAgent 
+
+        const contextDir = targetAgent
           ? join(CONTEXTS_DIR, targetAgent)
           : join(CONTEXTS_DIR, 'shared');
-        
+
         await ensureWageStructure();
-        
+
         if (!existsSync(contextDir)) {
           await mkdir(contextDir, { recursive: true });
         }
-        
+
         const filePath = join(contextDir, file);
         await writeFile(filePath, content, 'utf-8');
-        
+
+        const location = targetAgent ? `contexts/${targetAgent}/${file}` : `contexts/shared/${file}`;
         return {
           content: [
             {
               type: 'text',
-              text: `Context saved to ${targetAgent ? `contexts/${targetAgent}/${file}` : `contexts/shared/${file}`}`,
+              text: `✅ Context saved to ${location}`,
             },
           ],
         };
@@ -564,11 +608,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { agent } = args;
         const targetAgent = agent !== undefined ? agent : currentAgent;
         const scripts = await listScripts(targetAgent);
+        
+        let message = '';
+        if (scripts.length === 0) {
+          const scope = targetAgent ? `scripts/${targetAgent}/ and scripts/shared/` : 'scripts/shared/';
+          message = `No script files found in ${scope}`;
+        } else {
+          const scope = targetAgent ? ` for ${targetAgent}` : '';
+          message = `Available script files${scope} (${scripts.length}):\n` +
+                    scripts.map(s => `  • ${s.file} (${s.agent})`).join('\n');
+        }
+        
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(scripts, null, 2),
+              text: message,
             },
           ],
         };
@@ -577,19 +632,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'wage_execute_script': {
         const { file, args: scriptArgs = [], agent } = args;
         const targetAgent = agent !== undefined ? agent : currentAgent;
-        
-        const scriptDir = targetAgent 
+
+        const scriptDir = targetAgent
           ? join('scripts', targetAgent)
           : join('scripts', 'shared');
-        
+
         const scriptPath = join(scriptDir, file);
         const result = await executeScript(scriptPath, scriptArgs);
-        
+
+        let message = '';
+        if (result.success) {
+          message = `✅ Script '${file}' executed successfully\n`;
+          if (result.stdout) {
+            message += `\nOutput:\n${result.stdout}`;
+          }
+          if (result.stderr) {
+            message += `\nWarnings:\n${result.stderr}`;
+          }
+        } else {
+          message = `❌ Script '${file}' failed\n`;
+          message += `\nError: ${result.error}`;
+          if (result.stderr) {
+            message += `\n\nDetails:\n${result.stderr}`;
+          }
+        }
+
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(result, null, 2),
+              text: message,
             },
           ],
         };
@@ -601,7 +673,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(result, null, 2),
+              text: `✅ Temp folder cleaned (${result.cleaned} files removed)`,
             },
           ],
         };
@@ -614,6 +686,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: result.content || result.error,
+            },
+          ],
+        };
+      }
+
+      case 'wage_get_version': {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `WAGE v${WAGE_VERSION}`,
             },
           ],
         };

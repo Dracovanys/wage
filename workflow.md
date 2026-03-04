@@ -28,6 +28,7 @@ This document defines **all rules** that a WAGE agent must follow when receiving
 | `wage_execute_script` | Execute script | When script can automate task |
 | `wage_clean_temp` | Clean temp folder | Before and after each task |
 | `wage_get_workflow_rules` | Get workflow rules | When unsure about behavior |
+| `wage_get_version` | Get WAGE version | When user asks about version |
 
 ---
 

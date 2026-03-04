@@ -279,6 +279,7 @@ The WAGE workspace is located at `./wage/` and contains:
 | `wage_execute_script` | Execute a script (JS or Python) |
 | `wage_clean_temp` | Clean the `temp/` folder |
 | `wage_get_workflow_rules` | Get the WAGE workflow rules |
+| `wage_get_version` | Get the WAGE version |
 
 ---
 
